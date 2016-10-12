@@ -17,6 +17,9 @@ API_URL = 'https://api.pushjet.io/'
 def api_request(endpoint, method, params=None, data=None):
     url = urljoin(API_URL, endpoint)
     r = requests.request(method, url, params=params, data=data)
+    print r.request.body
+    print r.status_code
+    print r.text
     status = r.status_code
     try:
         response = r.json()
@@ -52,7 +55,17 @@ class Service(object):
 
     @requires_secret_key
     def send(self, message, title=None, link=None, importance=None):
-        pass
+        data = {'secret': self.secret_key}
+        # Make this dict-filling into a separate function
+        data['message'] = message
+        if title is not None:
+            data['title'] = title
+        if link is not None:
+            data['link'] = link
+        if importance is not None:
+            data['level'] = importance
+        
+        api_request('message', 'POST', data=data)
 
     @requires_secret_key
     def edit(self, name=None, icon_url=None):

@@ -7,3 +7,6 @@ class PushjetError(Exception):
 
 class WriteAccessError(PushjetError):
     pass
+
+class NonexistentError(PushjetError):
+    pass

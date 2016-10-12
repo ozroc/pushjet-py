@@ -34,7 +34,7 @@ def requires_secret_key(func):
         if self.secret_key is None:
             raise WriteAccessError("The Service doesn't have a secret "
                 "key provided, and therefore lacks write permission.")
-        func(*args, **kwargs)
+        func(self, *args, **kwargs)
 
     return with_secret_key_requirement
 
@@ -55,12 +55,22 @@ class Service(object):
         pass
 
     @requires_secret_key
-    def update(self, name=None, icon_url=None):
-        pass
+    def edit(self, name=None, icon_url=None):
+        if name is None and icon_url is None:
+            return
+        data = {'secret': self.secret_key}
+        if name is not None:
+            data['name'] = name
+        if icon_url is not None:
+            data['icon'] = icon_url
+        
+        api_request('service', 'PATCH', data=data)
+        self.name = name
+        self.icon_url = icon_url
 
     @requires_secret_key
     def delete(self):
-        pass
+        api_request('services', 'DELETE', data={'secret': self.secret_key})
     
     def _update_from_data(self, data):
         self.name       = data['name']

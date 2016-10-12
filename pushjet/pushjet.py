@@ -14,6 +14,20 @@ else:
 
 API_URL = 'https://api.pushjet.io/'
 
+def api_request(endpoint, method, params=None, data=None):
+    url = urljoin(API_URL, endpoint)
+    r = requests.request(method, url, params=params, data=data)
+    status = r.status_code
+    try:
+        response = r.json()
+    except ValueError:
+        response = {}
+    else:
+        # Workaround for a bug in the Pushjet implementation.
+        if 'error' in response:
+            status = 404
+    return status, response
+
 def requires_secret_key(func):
     @wraps(func)
     def with_secret_key_requirement(self, *args, **kwargs):
@@ -25,27 +39,16 @@ def requires_secret_key(func):
     return with_secret_key_requirement
 
 class Service(object):
-    def __init__(self, secret_key=None, public_key=None):
+    def __init__(self, secret_key=None, public_key=None, _from_data=None):
+        if _from_data is not None:
+            self._update_from_data(_from_data)
+            return
         if secret_key is None and public_key is None:
             raise ValueError("Either a secret key or public key "
                 "must be provided.")
         self.secret_key = secret_key
         self.public_key = public_key
         self.refresh()
-    
-    def _request(self, endpoint, method, params=None, data=None):
-        url = urljoin(API_URL, endpoint)
-        r = requests.request(method, url, params=params, data=data)
-        status = r.status_code
-        try:
-            response = r.json()
-        except ValueError:
-            response = {}
-        else:
-            # Workaround for a bug in the Pushjet implementation.
-            if 'error' in response:
-                status = 404
-        return status, response
 
     @requires_secret_key
     def send(self, message, title=None, link=None, importance=None):
@@ -76,12 +79,17 @@ class Service(object):
             key_name = 'public'
             params['service'] = self.public_key
         
-        status, response = self._request('service', 'GET', params=params)
+        status, response = api_request('service', 'GET', params=params)
         if status == 404:
             raise NonexistentError("A service with the provided {} key "
                 "does not exist (anymore, at least).".format(key_name))
         self._update_from_data(response['service'])
 
     @classmethod
-    def create(name, icon_url=None):
-        pass
+    def create(cls, name, icon_url=None):
+        data = {'name': name}
+        if icon_url is not None:
+            data['icon'] = icon_url
+        _, response = api_request('service', 'POST', data=data)
+        
+        return cls(_from_data=response['service'])

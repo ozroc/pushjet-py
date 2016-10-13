@@ -116,3 +116,25 @@ class Service(object):
         _, response = api_request('service', 'POST', data=data)
         
         return cls(_from_data=response['service'])
+
+class Device(object):
+    def __init__(self, uuid):
+        self.uuid = uuid
+    
+    def subscribe(self, service):
+        data = {'uuid': self.uuid}
+        if isinstance(service, Service):
+            data['service'] = service.public_key
+        else:
+            data['service'] = service
+
+        api_request('subscription', 'POST', data=data)
+    
+    def unsubscribe(self, service):
+        data = {'uuid': self.uuid}
+        if isinstance(service, Service):
+            data['service'] = service.public_key
+        else:
+            data['service'] = service
+
+        api_request('subscription', 'DELETE', data=data)

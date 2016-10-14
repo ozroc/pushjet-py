@@ -37,6 +37,13 @@ def api_bound(func):
         return func(self, *args, **kwargs)
     return with_api_argument
 
+def wraps_class(cls):
+    """Nitpicky quality-of-life decorator to make wrapped classes more informative."""
+    def add_note(func):
+        func.__doc__ = "For documentation, see help(pushjet.{}).".format(cls.__name__)
+        return func
+    return add_note
+
 def api_request(api_url, endpoint, method, params=None, data=None):
     url = urljoin(api_url, endpoint)
     r = requests.request(method, url, params=params, data=data)
@@ -184,13 +191,13 @@ class Api(object):
         self.url = url
     
     @property
-    @wraps(Service)
+    @wraps_class(Service)
     def Service(self):
         cls = partial(Service, _api_url=self.url)
         cls.create = partial(Service.create, _api_url=self.url)
         return cls
     
     @property
-    @wraps(Device)
+    @wraps_class(Device)
     def Device(self):
         return partial(Device, _api_url=self.url)

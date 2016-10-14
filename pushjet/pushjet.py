@@ -5,7 +5,12 @@ from __future__ import unicode_literals
 import requests
 from functools import partial
 
-from .utilities import NoNoneDict, requires_secret_key, api_bound, wraps_class, DEFAULT_API_URL
+from .utilities import (
+    DEFAULT_API_URL,
+    NoNoneDict,
+    requires_secret_key, api_bound, wraps_class,
+    is_valid_uuid, is_valid_public_key, is_valid_secret_key
+)
 from .errors import NonexistentError
 
 import sys
@@ -42,8 +47,12 @@ class Service(object):
         if secret_key is None and public_key is None:
             raise ValueError("Either a secret key or public key "
                 "must be provided.")
-        self.secret_key = unicode_type(secret_key)
-        self.public_key = unicode_type(public_key)
+        elif secret_key and not is_valid_secret_key(secret_key):
+            raise ValueError("Invalid secret key provided.")
+        elif public_key and not is_valid_public_key(public_key):
+            raise ValueError("Invalid public key provided.")
+        self.secret_key = unicode_type(secret_key) if secret_key else None
+        self.public_key = unicode_type(public_key) if public_key else None
         self.refresh()
     
     def _request(self, endpoint, method, is_secret, params=None, data=None):
@@ -111,6 +120,8 @@ class Service(object):
 
 class Device(object):
     def __init__(self, uuid):
+        if not is_valid_uuid(uuid):
+            raise ValueError("Invalid UUID provided. Try uuid.uuid4().")
         self.uuid = unicode_type(uuid)
     
     def _request(self, endpoint, method, params=None, data=None):

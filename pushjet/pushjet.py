@@ -3,7 +3,7 @@
 from __future__ import unicode_literals
 
 import requests
-from functools import wraps
+from functools import wraps, partial
 from .errors import WriteAccessError, NonexistentError
 
 import sys
@@ -14,15 +14,31 @@ else:
     from urlparse import urljoin
     unicode_type = unicode
 
-API_URL = 'https://api.pushjet.io/'
+DEFAULT_API_URL = 'https://api.pushjet.io/'
 
 class NoNoneDict(dict):
     def __setitem__(self, key, value):
         if value is not None:
             dict.__setitem__(self, key, value)
 
-def api_request(endpoint, method, params=None, data=None):
-    url = urljoin(API_URL, endpoint)
+def requires_secret_key(func):
+    @wraps(func)
+    def with_secret_key_requirement(self, *args, **kwargs):
+        if self.secret_key is None:
+            raise WriteAccessError("The Service doesn't have a secret "
+                "key provided, and therefore lacks write permission.")
+        return func(self, *args, **kwargs)
+    return with_secret_key_requirement
+
+def api_bound(func):
+    @wraps(func)
+    def with_api_argument(self, *args, **kwargs):
+        self._api_url = kwargs.pop('_api_url', DEFAULT_API_URL)
+        return func(self, *args, **kwargs)
+    return with_api_argument
+
+def api_request(api_url, endpoint, method, params=None, data=None):
+    url = urljoin(api_url, endpoint)
     r = requests.request(method, url, params=params, data=data)
     print r.request.body
     print r.status_code
@@ -38,17 +54,8 @@ def api_request(endpoint, method, params=None, data=None):
             status = 404
     return status, response
 
-def requires_secret_key(func):
-    @wraps(func)
-    def with_secret_key_requirement(self, *args, **kwargs):
-        if self.secret_key is None:
-            raise WriteAccessError("The Service doesn't have a secret "
-                "key provided, and therefore lacks write permission.")
-        func(self, *args, **kwargs)
-
-    return with_secret_key_requirement
-
 class Service(object):
+    @api_bound
     def __init__(self, secret_key=None, public_key=None, _from_data=None):
         if _from_data is not None:
             self._update_from_data(_from_data)
@@ -66,7 +73,7 @@ class Service(object):
             params['secret'] = self.secret_key
         else:
             params['service'] = self.public_key
-        return api_request(endpoint, method, params, data)
+        return api_request(self._api_url, endpoint, method, params, data)
 
     @requires_secret_key
     def send(self, message, title=None, link=None, importance=None):
@@ -92,21 +99,21 @@ class Service(object):
 
     @requires_secret_key
     def delete(self):
-        self._request('services', 'DELETE', is_secret=True)
+        self._request('service', 'DELETE', is_secret=True)
     
     def _update_from_data(self, data):
         self.name       = data['name']
         self.icon_url   = data['icon'] or None
         self.created    = data['created']
         self.public_key = data['public']
-        self.secret_key = data.get('secret', self.secret_key)
+        self.secret_key = data.get('secret', getattr(self, 'secret_key', None))
 
     def refresh(self):
-        key_name = 'secret'
-        secret = True
-        if self.public_key is not None:
-            key_name = 'public'
-            secret=False
+        key_name = 'public'
+        secret = False
+        if self.secret_key is not None:
+            key_name = 'secret'
+            secret = True
         
         status, response = self._request('service', 'GET', is_secret=secret)
         if status == 404:
@@ -115,12 +122,12 @@ class Service(object):
         self._update_from_data(response['service'])
 
     @classmethod
-    def create(cls, name, icon_url=None):
+    def create(cls, name, icon_url=None, _api_url=DEFAULT_API_URL):
         data = NoNoneDict({
             'name': name,
             'icon': icon_url
         })
-        _, response = api_request('service', 'POST', data=data)
+        _, response = api_request(_api_url, 'service', 'POST', data=data)
         return cls(_from_data=response['service'])
 
 class Device(object):
@@ -130,7 +137,7 @@ class Device(object):
     def _request(self, endpoint, method, params=None, data=None):
         params = (params or {})
         params['uuid'] = self.uuid
-        return api_request(endpoint, method, params, data)
+        return api_request(self._api_url, endpoint, method, params, data)
 
     def subscribe(self, service):
         data = {}
@@ -171,3 +178,19 @@ class Message(object):
         self.time_sent = message_dict['timestamp']
         self.importance = message_dict['level']
         self.service = Service(_from_data=message_dict['service'])
+
+class Api(object):
+    def __init__(self, url):
+        self.url = url
+    
+    @property
+    @wraps(Service)
+    def Service(self):
+        cls = partial(Service, _api_url=self.url)
+        cls.create = partial(Service.create, _api_url=self.url)
+        return cls
+    
+    @property
+    @wraps(Device)
+    def Device(self):
+        return partial(Device, _api_url=self.url)

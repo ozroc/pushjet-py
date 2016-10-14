@@ -9,8 +9,10 @@ from .errors import WriteAccessError, NonexistentError
 import sys
 if sys.version_info[0] >= 3:
     from urllib.parse import urljoin
+    unicode_type = str
 else:
     from urlparse import urljoin
+    unicode_type = unicode
 
 API_URL = 'https://api.pushjet.io/'
 
@@ -54,8 +56,8 @@ class Service(object):
         if secret_key is None and public_key is None:
             raise ValueError("Either a secret key or public key "
                 "must be provided.")
-        self.secret_key = secret_key
-        self.public_key = public_key
+        self.secret_key = unicode_type(secret_key)
+        self.public_key = unicode_type(public_key)
         self.refresh()
     
     def _request(self, endpoint, method, is_secret, params=None, data=None):
@@ -85,8 +87,8 @@ class Service(object):
         if not data:
             return
         self._request('service', 'PATCH', is_secret=True, data=data)
-        self.name = name
-        self.icon_url = icon_url
+        self.name = unicode_type(name)
+        self.icon_url = unicode_type(icon_url)
 
     @requires_secret_key
     def delete(self):
@@ -123,7 +125,7 @@ class Service(object):
 
 class Device(object):
     def __init__(self, uuid):
-        self.uuid = uuid
+        self.uuid = unicode_type(uuid)
     
     def _request(self, endpoint, method, params=None, data=None):
         params = (params or {})

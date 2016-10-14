@@ -14,6 +14,11 @@ else:
 
 API_URL = 'https://api.pushjet.io/'
 
+class NoNoneDict(dict):
+    def __setitem__(self, key, value):
+        if value is not None:
+            dict.__setitem__(self, key, value)
+
 def api_request(endpoint, method, params=None, data=None):
     url = urljoin(API_URL, endpoint)
     r = requests.request(method, url, params=params, data=data)
@@ -52,57 +57,56 @@ class Service(object):
         self.secret_key = secret_key
         self.public_key = public_key
         self.refresh()
+    
+    def _request(self, endpoint, method, is_secret, params=None, data=None):
+        params = params or {}
+        if is_secret:
+            params['secret'] = self.secret_key
+        else:
+            params['service'] = self.public_key
+        return api_request(endpoint, method, params, data)
 
     @requires_secret_key
     def send(self, message, title=None, link=None, importance=None):
-        data = {'secret': self.secret_key}
-        # Make this dict-filling into a separate function
-        data['message'] = message
-        if title is not None:
-            data['title'] = title
-        if link is not None:
-            data['link'] = link
-        if importance is not None:
-            data['level'] = importance
-        
-        api_request('message', 'POST', data=data)
+        data = NoNoneDict({
+            'message': message,
+            'title': title,
+            'link': link,
+            'level': importance
+        })
+        self._request('message', 'POST', is_secret=True, data=data)
 
     @requires_secret_key
     def edit(self, name=None, icon_url=None):
-        if name is None and icon_url is None:
+        data = NoNoneDict({
+            'icon': icon_url,
+            'name': name
+        })
+        if not data:
             return
-        data = {'secret': self.secret_key}
-        if name is not None:
-            data['name'] = name
-        if icon_url is not None:
-            data['icon'] = icon_url
-        
-        api_request('service', 'PATCH', data=data)
+        self._request('service', 'PATCH', is_secret=True, data=data)
         self.name = name
         self.icon_url = icon_url
 
     @requires_secret_key
     def delete(self):
-        api_request('services', 'DELETE', data={'secret': self.secret_key})
+        self._request('services', 'DELETE', is_secret=True)
     
     def _update_from_data(self, data):
         self.name       = data['name']
         self.icon_url   = data['icon'] or None
         self.created    = data['created']
         self.public_key = data['public']
-        if 'secret' in data:
-            self.secret_key = data['secret']
+        self.secret_key = data.get('secret', self.secret_key)
 
     def refresh(self):
-        params = {}
-        if self.secret_key is not None:
-            key_name = 'secret'
-            params['secret'] = self.secret_key
-        else:
+        key_name = 'secret'
+        secret = True
+        if self.public_key is not None:
             key_name = 'public'
-            params['service'] = self.public_key
+            secret=False
         
-        status, response = api_request('service', 'GET', params=params)
+        status, response = self._request('service', 'GET', is_secret=secret)
         if status == 404:
             raise NonexistentError("A service with the provided {} key "
                 "does not exist (anymore, at least).".format(key_name))
@@ -110,44 +114,41 @@ class Service(object):
 
     @classmethod
     def create(cls, name, icon_url=None):
-        data = {'name': name}
-        if icon_url is not None:
-            data['icon'] = icon_url
+        data = NoNoneDict({
+            'name': name,
+            'icon': icon_url
+        })
         _, response = api_request('service', 'POST', data=data)
-        
         return cls(_from_data=response['service'])
 
 class Device(object):
     def __init__(self, uuid):
         self.uuid = uuid
     
-    def subscribe(self, service):
-        data = {'uuid': self.uuid}
-        if isinstance(service, Service):
-            data['service'] = service.public_key
-        else:
-            data['service'] = service
+    def _request(self, endpoint, method, params=None, data=None):
+        params = (params or {})
+        params['uuid'] = self.uuid
+        return api_request(endpoint, method, params, data)
 
-        api_request('subscription', 'POST', data=data)
+    def subscribe(self, service):
+        data = {}
+        data['service'] = service.public_key if isinstance(service, Service) else service
+        self._request('subscription', 'POST', data=data)
     
     def unsubscribe(self, service):
-        data = {'uuid': self.uuid}
-        if isinstance(service, Service):
-            data['service'] = service.public_key
-        else:
-            data['service'] = service
-
-        api_request('subscription', 'DELETE', data=data)
+        data = {}
+        data['service'] = service.public_key if isinstance(service, Service) else service
+        self._request('subscription', 'POST', data=data)
 
     def get_subscriptions(self):
-        _, response = api_request('subscription', 'GET', params={'uuid': self.uuid})
+        _, response = self._request('subscription', 'GET')
         subscriptions = []
         for subscription_dict in response['subscriptions']:
             subscriptions.append(Subscription(subscription_dict))
         return subscriptions
     
     def get_messages(self):
-        _, response = api_request('message', 'GET', params={'uuid': self.uuid})
+        _, response = self._request('message', 'GET')
         messages = []
         for message_dict in response['messages']:
             messages.append(Message(message_dict))

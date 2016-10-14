@@ -138,3 +138,33 @@ class Device(object):
             data['service'] = service
 
         api_request('subscription', 'DELETE', data=data)
+
+    def get_subscriptions(self):
+        _, response = api_request('subscription', 'GET', params={'uuid': self.uuid})
+        subscriptions = []
+        for subscription_dict in response['subscriptions']:
+            subscriptions.append(Subscription(subscription_dict))
+        return subscriptions
+    
+    def get_messages(self):
+        _, response = api_request('message', 'GET', params={'uuid': self.uuid})
+        messages = []
+        for message_dict in response['messages']:
+            messages.append(Message(message_dict))
+        return messages
+
+class Subscription(object):
+    def __init__(self, subscription_dict):
+        self.service = Service(_from_data=subscription_dict['service'])
+        self.time_subscribed = subscription_dict['timestamp']
+        self.last_checked = subscription_dict['timestamp_checked']
+        self.device_uuid = subscription_dict['uuid'] # Not sure this is needed, but...
+
+class Message(object):
+    def __init__(self, message_dict):
+        self.message = message_dict['message']
+        self.title = message_dict['title']
+        self.link = message_dict['link'] or None
+        self.time_sent = message_dict['timestamp']
+        self.importance = message_dict['level']
+        self.service = Service(_from_data=message_dict['service'])

@@ -11,7 +11,7 @@ from .utilities import (
     requires_secret_key, api_bound, wraps_class,
     is_valid_uuid, is_valid_public_key, is_valid_secret_key
 )
-from .errors import NonexistentError
+from .errors import NonexistentError, AlreadySubscribedError
 
 import sys
 if sys.version_info[0] >= 3:
@@ -119,6 +119,7 @@ class Service(object):
         return cls(_from_data=response['service'])
 
 class Device(object):
+    @api_bound
     def __init__(self, uuid):
         if not is_valid_uuid(uuid):
             raise ValueError("Invalid UUID provided. Try uuid.uuid4().")
@@ -132,12 +133,17 @@ class Device(object):
     def subscribe(self, service):
         data = {}
         data['service'] = service.public_key if isinstance(service, Service) else service
-        self._request('subscription', 'POST', data=data)
+        status, _ = self._request('subscription', 'POST', data=data)
+        if status == 409:
+            raise AlreadySubscribedError("The device is already subscribed to that service.")
+        elif status == 404:
+            raise NonexistentError("A service with the provided public key "
+                "does not exist (anymore, at least).")
     
     def unsubscribe(self, service):
         data = {}
         data['service'] = service.public_key if isinstance(service, Service) else service
-        self._request('subscription', 'POST', data=data)
+        self._request('subscription', 'DELETE', data=data)
 
     def get_subscriptions(self):
         _, response = self._request('subscription', 'GET')

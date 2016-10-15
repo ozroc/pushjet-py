@@ -46,6 +46,6 @@ UUID_RE = re.compile(r'^[A-Fa-f0-9]{8}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]
 PUBLIC_KEY_RE = re.compile(r'^[A-Za-z0-9]{4}-[A-Za-z0-9]{6}-[A-Za-z0-9]{12}-[A-Za-z0-9]{5}-[A-Za-z0-9]{9}$')
 SECRET_KEY_RE = re.compile(r'^[A-Za-z0-9]{32}$')
 
-is_valid_uuid = lambda s: s.match(UUID_RE) is not None
-is_valid_public_key = lambda s: s.match(PUBLIC_KEY_RE) is not None
-is_valid_secret_key = lambda s: s.match(SECRET_KEY_RE) is not None
+is_valid_uuid = lambda s: UUID_RE.match(s) is not None
+is_valid_public_key = lambda s: PUBLIC_KEY_RE.match(s) is not None
+is_valid_secret_key = lambda s: SECRET_KEY_RE.match(s) is not None

@@ -3,6 +3,7 @@
 from __future__ import unicode_literals
 
 import re
+import sys
 from functools import wraps
 from .errors import WriteAccessError
 
@@ -49,3 +50,11 @@ SECRET_KEY_RE = re.compile(r'^[A-Za-z0-9]{32}$')
 is_valid_uuid = lambda s: UUID_RE.match(s) is not None
 is_valid_public_key = lambda s: PUBLIC_KEY_RE.match(s) is not None
 is_valid_secret_key = lambda s: SECRET_KEY_RE.match(s) is not None
+
+def repr_format(s):
+    s = s.replace('\n', ' ').replace('\r', '')
+    original_length = len(s)
+    s = s[:30]
+    s += '...' if len(s) != original_length else ''
+    s = s.encode(sys.stdout.encoding, errors='replace')
+    return s

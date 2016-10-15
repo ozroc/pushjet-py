@@ -9,7 +9,7 @@ from .utilities import (
     DEFAULT_API_URL,
     NoNoneDict,
     requires_secret_key, api_bound, wraps_class,
-    is_valid_uuid, is_valid_public_key, is_valid_secret_key
+    is_valid_uuid, is_valid_public_key, is_valid_secret_key, repr_format
 )
 from .errors import NonexistentError, AlreadySubscribedError
 
@@ -39,6 +39,9 @@ def api_request(api_url, endpoint, method, params=None, data=None):
     return status, response
 
 class Service(object):
+    def __repr__(self):
+        return "<Pushjet Service: \"{}\">".format(repr_format(self.name))
+
     @api_bound
     def __init__(self, secret_key=None, public_key=None, _from_data=None):
         if _from_data is not None:
@@ -119,6 +122,9 @@ class Service(object):
         return cls(_from_data=response['service'])
 
 class Device(object):
+    def __repr__(self):
+        return "<Pushjet Device: {}>".format(self.uuid)
+
     @api_bound
     def __init__(self, uuid):
         if not is_valid_uuid(uuid):
@@ -160,6 +166,9 @@ class Device(object):
         return messages
 
 class Subscription(object):
+    def __repr__(self):
+        return "<Pushjet Subscription to service \"{}\">".format(repr_format(self.service.name))
+
     def __init__(self, subscription_dict):
         self.service = Service(_from_data=subscription_dict['service'])
         self.time_subscribed = subscription_dict['timestamp']
@@ -167,6 +176,9 @@ class Subscription(object):
         self.device_uuid = subscription_dict['uuid'] # Not sure this is needed, but...
 
 class Message(object):
+    def __repr__(self):
+        return "<Pushjet Message: \"\">".format(repr_format(self.title or self.message))
+
     def __init__(self, message_dict):
         self.message = message_dict['message']
         self.title = message_dict['title']
@@ -176,8 +188,11 @@ class Message(object):
         self.service = Service(_from_data=message_dict['service'])
 
 class Api(object):
+    def __repr__(self):
+        return "<Pushjet Api: {}>".format(self.url.encode(sys.stdout.encoding, errors='replace'))
+
     def __init__(self, url):
-        self.url = url
+        self.url = unicode_type(url)
     
     @property
     @wraps_class(Service)

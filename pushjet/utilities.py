@@ -12,6 +12,7 @@ DEFAULT_API_URL = 'https://api.pushjet.io/'
 # Help class(...es? Nah. Just singular for now.)
 
 class NoNoneDict(dict):
+    """A dict that ignores values that are None.""""
     def __setitem__(self, key, value):
         if value is not None:
             dict.__setitem__(self, key, value)
@@ -19,6 +20,7 @@ class NoNoneDict(dict):
 # Decorators
 
 def requires_secret_key(func):
+    """Raise an error if the method is called without a secret key."""
     @wraps(func)
     def with_secret_key_requirement(self, *args, **kwargs):
         if self.secret_key is None:
@@ -28,6 +30,7 @@ def requires_secret_key(func):
     return with_secret_key_requirement
 
 def api_bound(func):
+    """Inject an optional API URL argument in class constructors."""
     @wraps(func)
     def with_api_argument(self, *args, **kwargs):
         self._api_url = kwargs.pop('_api_url', DEFAULT_API_URL)
@@ -37,7 +40,10 @@ def api_bound(func):
 def wraps_class(cls):
     """Nitpicky quality-of-life decorator to make wrapped classes more informative."""
     def add_note(func):
-        func.__doc__ = "For documentation, see help(pushjet.{}).".format(cls.__name__)
+        func.__doc__ = (
+            "Create a :class:`.{name}` bound to the API. "
+            "See :class:`pushjet.{name}` for documentation."
+        ).format(name=cls.__name__)
         return func
     return add_note
 

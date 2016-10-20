@@ -123,7 +123,7 @@ class Service(PushjetModel):
             secret = True
         
         status, response = self._request('service', 'GET', is_secret=secret)
-        if status == 404:
+        if status == requests.codes.NOT_FOUND:
             raise NonexistentError("A service with the provided {} key "
                 "does not exist (anymore, at least).".format(key_name))
         self._update_from_data(response['service'])
@@ -188,9 +188,9 @@ class Device(PushjetModel):
         data = {}
         data['service'] = service.public_key if isinstance(service, Service) else service
         status, response = self._request('subscription', 'POST', data=data)
-        if status == 409:
+        if status == requests.codes.CONFLICT:
             raise SubscriptionError("The device is already subscribed to that service.")
-        elif status == 404:
+        elif status == requests.codes.NOT_FOUND:
             raise NonexistentError("A service with the provided public key "
                 "does not exist (anymore, at least).")
         return self._api.Service._from_data(response['service'])
@@ -203,9 +203,9 @@ class Device(PushjetModel):
         data = {}
         data['service'] = service.public_key if isinstance(service, Service) else service
         self._request('subscription', 'DELETE', data=data)
-        if status == 409:
+        if status == requests.codes.CONFLICT:
             raise SubscriptionError("The device is not subscribed to that service.")
-        elif status == 404:
+        elif status == requests.codes.NOT_FOUND:
             raise NonexistentError("A service with the provided public key "
                 "does not exist (anymore, at least).")
 
@@ -292,9 +292,6 @@ class Api(object):
     def _request(self, endpoint, method, params=None, data=None):
         url = urljoin(self.url, endpoint)
         r = requests.request(method, url, params=params, data=data)
-        print(r.request.body)
-        print(r.status_code)
-        print(r.text)
         status = r.status_code
         try:
             response = r.json()
@@ -303,7 +300,7 @@ class Api(object):
         else:
             # Workaround for a bug in the Pushjet implementation.
             if 'error' in response:
-                status = 404
+                status = requests.codes.NOT_FOUND
         return status, response
 
 default_api = Api(DEFAULT_API_URL)

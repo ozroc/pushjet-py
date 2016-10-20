@@ -1,5 +1,8 @@
-pushjet (Python API)
-====================
+pushjet |logo| (Python API)
+=============================
+
+.. |logo| image:: http://i.imgur.com/DayiPBl.png
+    :align: middle
 
 Welcome to ``pushjet``, Python's `Pushjet <https://pushjet.io/>`__ (`see on GitHub <https://github.com/Pushjet/Pushjet-Server-Api>`__) API. Pushjet lets you push notifications directly to your phone (among other things)! This module lets you do that pushing from Python! It's pretty sweet - it lets you do all sorts of cool things, like integrating notifications into your web app or notifying you when something goes on sale.
 
@@ -34,7 +37,8 @@ See the *Getting started* section of the `documentation <http://pushjet.readthed
     device.subscribe(service)
     service.send(
         "A spot is open for you in the competitive eating course!", # Message
-        "Course open" # Title
+        "Course open", # Title
+        "http://example.com/courses/eating/competitive" # Link
     )
     for message in device.get_messages():
         print message.title

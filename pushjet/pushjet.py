@@ -151,7 +151,7 @@ class Service(PushjetModel):
         
         :param name: The name of the new service.
         :param icon_url: (optional) An URL to an image to be used as the service's icon.
-        :return: :class:`~pushjet.Service`
+        :return: The newly-created :class:`~pushjet.Service`.
         """
         data = NoNoneDict({
             'name': name,
@@ -187,6 +187,7 @@ class Device(PushjetModel):
         """Subscribe the device to a service.
         
         :param service: The service to subscribe to. May be a public key or a :class:`~pushjet.Service`.
+        :return: The :class:`~pushjet.Service` subscribed to.
 
         :raises: :exc:`~pushjet.NonexistentError` if the provided service does not exist.
         :raises: :exc:`~pushjet.SubscriptionError` if the provided service is already subscribed to.

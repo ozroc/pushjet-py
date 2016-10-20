@@ -93,8 +93,8 @@ class Service(PushjetModel):
             Set to an empty string to remove the service's icon entirely.
         """
         data = NoNoneDict({
-            'icon': icon_url,
-            'name': name
+            'name': name,
+            'icon': icon_url
         })
         if not data:
             return
@@ -210,7 +210,7 @@ class Device(PushjetModel):
         """
         data = {}
         data['service'] = service.public_key if isinstance(service, Service) else service
-        self._request('subscription', 'DELETE', data=data)
+        status, _ = self._request('subscription', 'DELETE', data=data)
         if status == requests.codes.CONFLICT:
             raise SubscriptionError("The device is not subscribed to that service.")
         elif status == requests.codes.NOT_FOUND:
@@ -271,7 +271,7 @@ class Message(object):
     """
 
     def __repr__(self):
-        return "<Pushjet Message: \"\">".format(repr_format(self.title or self.message))
+        return "<Pushjet Message: \"{}\">".format(repr_format(self.title or self.message))
 
     def __init__(self, message_dict):
         self.message = message_dict['message']
@@ -308,10 +308,6 @@ class Api(object):
             response = r.json()
         except ValueError:
             response = {}
-        else:
-            # Workaround for a bug in the Pushjet implementation.
-            if 'error' in response:
-                status = requests.codes.NOT_FOUND
         return status, response
 
 default_api = Api(DEFAULT_API_URL)

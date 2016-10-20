@@ -10,10 +10,22 @@ from .errors import AccessError
 # Help class(...es? Nah. Just singular for now.)
 
 class NoNoneDict(dict):
-    """A dict that ignores values that are None."""
+    """A dict that ignores values that are None. Not completely API-compatible
+    with dict, but contains all that's needed.
+    """
+    def __repr__(self):
+        return "NoNoneDict({dict})".format(dict=dict.__repr__(self))
+    
+    def __init__(self, initial={}):
+        self.update(initial)
+
     def __setitem__(self, key, value):
         if value is not None:
             dict.__setitem__(self, key, value)
+    
+    def update(self, data):
+        for key, value in data.items():
+            self[key] = value
 
 # Decorators / factories
 

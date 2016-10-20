@@ -4,7 +4,7 @@ Reference
 Interface
 ---------
 
-Note that all methods can raise :exc:`~pushjet.RequestError` if the server somehow becomes unavailable.
+Note that all methods can raise :exc:`~pushjet.RequestError` if the server somehow becomes unavailable. They can also raise :exc:`~pushjet.ServerError` if there's a bug in the server, but that's fairly unpredictable and in a perfect world would never be able to happen.
 
 .. autoclass:: pushjet.Service
     :members:
@@ -24,8 +24,9 @@ Custom API instances
 Exceptions
 ----------
 
-.. autoexception:: pushjet.PushjetError
-.. autoexception:: pushjet.AccessError
-.. autoexception:: pushjet.NonexistentError
-.. autoexception:: pushjet.SubscriptionError
+.. autoexception:: pushjet.PushjetError()
+.. autoexception:: pushjet.AccessError()
+.. autoexception:: pushjet.NonexistentError()
+.. autoexception:: pushjet.SubscriptionError()
 .. autoexception:: pushjet.RequestError()
+.. autoexception:: pushjet.ServerError()

@@ -10,7 +10,7 @@ from .utilities import (
     requires_secret_key, with_api_bound,
     is_valid_uuid, is_valid_public_key, is_valid_secret_key, repr_format
 )
-from .errors import NonexistentError, SubscriptionError, RequestError
+from .errors import NonexistentError, SubscriptionError, RequestError, ServerError
 
 import sys
 if sys.version_info[0] >= 3:
@@ -305,6 +305,12 @@ class Api(object):
         except requests.RequestException as e:
             raise RequestError(e)
         status = r.status_code
+        if status == requests.codes.INTERNAL_SERVER_ERROR:
+            raise ServerError(
+                "An error occurred in the server while processing your request. "
+                "This should probably be reported to: "
+                "https://github.com/Pushjet/Pushjet-Server-Api/issues"
+            )
         try:
             response = r.json()
         except ValueError:

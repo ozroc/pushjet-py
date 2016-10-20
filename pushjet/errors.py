@@ -40,3 +40,10 @@ class RequestError(PushjetError, ConnectionError):
 
     def __init__(self, requests_exception):
         self.requests_exception = requests_exception
+
+class ServerError(PushjetError):
+    """Raised if the API server has an error while processing your request.
+    This getting raised means there's a bug in the server! If you manage to
+    track down what caused it, you can `open an issue on Pushjet's GitHub page 
+    <https://github.com/Pushjet/Pushjet-Server-Api/issues>`__.
+    """

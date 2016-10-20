@@ -4,48 +4,36 @@ from __future__ import unicode_literals
 
 import re
 import sys
-from functools import wraps
+from decorator import decorator
 from .errors import WriteAccessError
-
-DEFAULT_API_URL = 'https://api.pushjet.io/'
 
 # Help class(...es? Nah. Just singular for now.)
 
 class NoNoneDict(dict):
-    """A dict that ignores values that are None.""""
+    """A dict that ignores values that are None."""
     def __setitem__(self, key, value):
         if value is not None:
             dict.__setitem__(self, key, value)
 
-# Decorators
+# Decorators / factories
 
-def requires_secret_key(func):
+@decorator
+def requires_secret_key(func, self, *args, **kwargs):
     """Raise an error if the method is called without a secret key."""
-    @wraps(func)
-    def with_secret_key_requirement(self, *args, **kwargs):
-        if self.secret_key is None:
-            raise WriteAccessError("The Service doesn't have a secret "
-                "key provided, and therefore lacks write permission.")
-        return func(self, *args, **kwargs)
-    return with_secret_key_requirement
+    if self.secret_key is None:
+        raise WriteAccessError("The Service doesn't have a secret "
+            "key provided, and therefore lacks write permission.")
+    return func(self, *args, **kwargs)
 
-def api_bound(func):
-    """Inject an optional API URL argument in class constructors."""
-    @wraps(func)
-    def with_api_argument(self, *args, **kwargs):
-        self._api_url = kwargs.pop('_api_url', DEFAULT_API_URL)
-        return func(self, *args, **kwargs)
-    return with_api_argument
-
-def wraps_class(cls):
-    """Nitpicky quality-of-life decorator to make wrapped classes more informative."""
-    def add_note(func):
-        func.__doc__ = (
-            "Create a :class:`.{name}` bound to the API. "
+def with_api_bound(cls, api):
+    new_cls = type(cls.__name__, (cls,), {
+        '_api': api,
+        '__doc__': (
+            "Create a :class:`~pushjet.{name}` bound to the API. "
             "See :class:`pushjet.{name}` for documentation."
         ).format(name=cls.__name__)
-        return func
-    return add_note
+    })
+    return new_cls
 
 # Helper functions
 

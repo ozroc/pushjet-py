@@ -6,12 +6,11 @@ import requests
 from functools import partial
 
 from .utilities import (
-    DEFAULT_API_URL,
     NoNoneDict,
-    requires_secret_key, api_bound, wraps_class,
+    requires_secret_key, with_api_bound,
     is_valid_uuid, is_valid_public_key, is_valid_secret_key, repr_format
 )
-from .errors import NonexistentError, AlreadySubscribedError
+from .errors import NonexistentError, SubscriptionError
 
 import sys
 if sys.version_info[0] >= 3:
@@ -21,24 +20,12 @@ else:
     from urlparse import urljoin
     unicode_type = unicode
 
-def api_request(api_url, endpoint, method, params=None, data=None):
-    url = urljoin(api_url, endpoint)
-    r = requests.request(method, url, params=params, data=data)
-    print r.request.body
-    print r.status_code
-    print r.text
-    status = r.status_code
-    try:
-        response = r.json()
-    except ValueError:
-        response = {}
-    else:
-        # Workaround for a bug in the Pushjet implementation.
-        if 'error' in response:
-            status = 404
-    return status, response
+DEFAULT_API_URL = 'https://api.pushjet.io/'
 
-class Service(object):
+class PushjetModel(object):
+    _api = None # Is filled in later
+
+class Service(PushjetModel):
     """A Pushjet service to send messages through. To receive messages, devices
     subscribe to these.
 
@@ -59,11 +46,7 @@ class Service(object):
     def __repr__(self):
         return "<Pushjet Service: \"{}\">".format(repr_format(self.name))
 
-    @api_bound
-    def __init__(self, secret_key=None, public_key=None, _from_data=None):
-        if _from_data is not None:
-            self._update_from_data(_from_data)
-            return
+    def __init__(self, secret_key=None, public_key=None):
         if secret_key is None and public_key is None:
             raise ValueError("Either a secret key or public key "
                 "must be provided.")
@@ -81,7 +64,7 @@ class Service(object):
             params['secret'] = self.secret_key
         else:
             params['service'] = self.public_key
-        return api_request(self._api_url, endpoint, method, params, data)
+        return self._api._request(endpoint, method, params, data)
 
     @requires_secret_key
     def send(self, message, title=None, link=None, importance=None):
@@ -146,21 +129,35 @@ class Service(object):
         self._update_from_data(response['service'])
 
     @classmethod
-    def create(cls, name, icon_url=None, _api_url=DEFAULT_API_URL):
+    def _from_data(cls, data):
+        # This might be a no-no, but I see little alternative if
+        # different constructors with different parameters are needed,
+        # *and* a default __init__ constructor should be present.
+        # This, along with the subclassing for custom API URLs, may
+        # very well be one of those pieces of code you look back at
+        # years down the line - or maybe just a couple of weeks - and say
+        # "what the heck was I thinking"? I assure you, though, future me.
+        # This was the most reasonable thing to get the API + argspecs I wanted.
+        obj = cls.__new__(cls)
+        obj._update_from_data(data)
+        return obj
+
+    @classmethod
+    def create(cls, name, icon_url=None):
         """Create a new service.
         
         :param name: The name of the new service.
         :param icon_url: (optional) An URL to an image to be used as the service's icon.
-        :return: :class:`.Service`
+        :return: :class:`~pushjet.Service`
         """
         data = NoNoneDict({
             'name': name,
             'icon': icon_url
         })
-        _, response = api_request(_api_url, 'service', 'POST', data=data)
-        return cls(_from_data=response['service'])
+        _, response = cls._api._request('service', 'POST', data=data)
+        return cls._from_data(response['service'])
 
-class Device(object):
+class Device(PushjetModel):
     """The "receiver" for messages. Subscribes to services and receives any
     messages they send.
 
@@ -172,8 +169,8 @@ class Device(object):
     def __repr__(self):
         return "<Pushjet Device: {}>".format(self.uuid)
 
-    @api_bound
     def __init__(self, uuid):
+        uuid = unicode_type(uuid)
         if not is_valid_uuid(uuid):
             raise ValueError("Invalid UUID provided. Try uuid.uuid4().")
         self.uuid = unicode_type(uuid)
@@ -181,35 +178,41 @@ class Device(object):
     def _request(self, endpoint, method, params=None, data=None):
         params = (params or {})
         params['uuid'] = self.uuid
-        return api_request(self._api_url, endpoint, method, params, data)
+        return self._api._request(endpoint, method, params, data)
 
     def subscribe(self, service):
         """Subscribe the device to a service.
         
-        :param service: The service to subscribe to. May be a public key or a :class:`.Service`. 
+        :param service: The service to subscribe to. May be a public key or a :class:`~pushjet.Service`. 
         """
         data = {}
         data['service'] = service.public_key if isinstance(service, Service) else service
-        status, _ = self._request('subscription', 'POST', data=data)
+        status, response = self._request('subscription', 'POST', data=data)
         if status == 409:
-            raise AlreadySubscribedError("The device is already subscribed to that service.")
+            raise SubscriptionError("The device is already subscribed to that service.")
         elif status == 404:
             raise NonexistentError("A service with the provided public key "
                 "does not exist (anymore, at least).")
+        return self._api.Service._from_data(response['service'])
     
     def unsubscribe(self, service):
         """Unsubscribe the device from a service.
         
-        :param service: The service to unsubscribe from. May be a public key or a :class:`.Service`. 
+        :param service: The service to unsubscribe from. May be a public key or a :class:`~pushjet.Service`. 
         """
         data = {}
         data['service'] = service.public_key if isinstance(service, Service) else service
         self._request('subscription', 'DELETE', data=data)
+        if status == 409:
+            raise SubscriptionError("The device is not subscribed to that service.")
+        elif status == 404:
+            raise NonexistentError("A service with the provided public key "
+                "does not exist (anymore, at least).")
 
     def get_subscriptions(self):
         """Get all the subscriptions the device has.
 
-        :return: A list of :class:`.Subscription`\ s.
+        :return: A list of :class:`~pushjet.Subscription`\ s.
         """
         _, response = self._request('subscription', 'GET')
         subscriptions = []
@@ -220,7 +223,7 @@ class Device(object):
     def get_messages(self):
         """Get all new (that is, as of yet unretrieved) messages.
         
-        :return: A list of :class:`.Message`\ s.
+        :return: A list of :class:`~pushjet.Message`\ s.
         """
         _, response = self._request('message', 'GET')
         messages = []
@@ -231,7 +234,7 @@ class Device(object):
 class Subscription(object):
     """A subscription to a service, with the metadata that entails.
 
-    :ivar service: The service the subscription is to, as a :class:`.Service`.
+    :ivar service: The service the subscription is to, as a :class:`~pushjet.Service`.
     :ivar time_subscribed: When the subscription was made, as seconds from epoch.
     :ivar last_checked: When the device last retrieved messages from the subscription,
         as seconds from epoch.
@@ -242,7 +245,7 @@ class Subscription(object):
         return "<Pushjet Subscription to service \"{}\">".format(repr_format(self.service.name))
 
     def __init__(self, subscription_dict):
-        self.service = Service(_from_data=subscription_dict['service'])
+        self.service = Service._from_data(subscription_dict['service'])
         self.time_subscribed = subscription_dict['timestamp']
         self.last_checked = subscription_dict['timestamp_checked']
         self.device_uuid = subscription_dict['uuid'] # Not sure this is needed, but...
@@ -256,7 +259,7 @@ class Message(object):
     :ivar time_sent: When the message was sent, as seconds from epoch.
     :ivar importance: The message's priority level between 1 and 5, where 1 is
         least important and 5 is most.
-    :ivar service: The :class:`.Service` that sent the message.
+    :ivar service: The :class:`~pushjet.Service` that sent the message.
     """
 
     def __repr__(self):
@@ -268,7 +271,7 @@ class Message(object):
         self.link = message_dict['link'] or None
         self.time_sent = message_dict['timestamp']
         self.importance = message_dict['level']
-        self.service = Service(_from_data=message_dict['service'])
+        self.service = Service._from_data(message_dict['service'])
 
 class Api(object):
     """An API with a custom URL. Use this if you're connecting to a self-hosted
@@ -279,19 +282,33 @@ class Api(object):
     """
 
     def __repr__(self):
-        return "<Pushjet Api: {}>".format(self.url.encode(sys.stdout.encoding, errors='replace'))
+        return "<Pushjet Api: {}>".format(self.url).encode(sys.stdout.encoding, errors='replace')
 
     def __init__(self, url):
         self.url = unicode_type(url)
+        self.Service = with_api_bound(Service, self)
+        self.Device = with_api_bound(Device, self)
     
-    @property
-    @wraps_class(Service)
-    def Service(self):
-        cls = partial(Service, _api_url=self.url)
-        cls.create = partial(Service.create, _api_url=self.url)
-        return cls
-    
-    @property
-    @wraps_class(Device)
-    def Device(self):
-        return partial(Device, _api_url=self.url)
+    def _request(self, endpoint, method, params=None, data=None):
+        url = urljoin(self.url, endpoint)
+        r = requests.request(method, url, params=params, data=data)
+        print(r.request.body)
+        print(r.status_code)
+        print(r.text)
+        status = r.status_code
+        try:
+            response = r.json()
+        except ValueError:
+            response = {}
+        else:
+            # Workaround for a bug in the Pushjet implementation.
+            if 'error' in response:
+                status = 404
+        return status, response
+
+default_api = Api(DEFAULT_API_URL)
+
+# I feel like this is illegal in most of the world.
+Api.Service = with_api_bound(Service, default_api)
+Api.Device = with_api_bound(Device, default_api)
+PushjetModel._api = default_api

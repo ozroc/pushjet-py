@@ -11,5 +11,5 @@ class WriteAccessError(PushjetError):
 class NonexistentError(PushjetError):
     pass
 
-class AlreadySubscribedError(PushjetError):
+class SubscriptionError(PushjetError):
     pass

@@ -5,7 +5,7 @@ from __future__ import unicode_literals
 import re
 import sys
 from decorator import decorator
-from .errors import WriteAccessError
+from .errors import AccessError
 
 # Help class(...es? Nah. Just singular for now.)
 
@@ -21,7 +21,7 @@ class NoNoneDict(dict):
 def requires_secret_key(func, self, *args, **kwargs):
     """Raise an error if the method is called without a secret key."""
     if self.secret_key is None:
-        raise WriteAccessError("The Service doesn't have a secret "
+        raise AccessError("The Service doesn't have a secret "
             "key provided, and therefore lacks write permission.")
     return func(self, *args, **kwargs)
 

@@ -8,7 +8,7 @@ And yep, the module's just named ``pushjet``. Spiffy name, and surely not at all
 How to install
 --------------
 
-The module is on PyPI! This means you can install it using `pip <https://pip.pypa.io/en/latest/installing/>`__. Simply run the following to install it:
+The module is `on GitHub <https://github.com/obskyr/pushjet-py>`__, and `it's also on PyPI <https://pypi.python.org/pypi/pushjet>`__! That means you can install it using `pip <https://pip.pypa.io/en/latest/installing/>`__. Simply run the following to install it:
 
 .. code:: bash
 
@@ -19,7 +19,7 @@ Bam, you're ready to go. It's compatible with both Python 2 and 3, too - nice, h
 How to use
 ----------
 
-See the *Getting started* section of the `documentation <#>`__. Here's a little taste:
+See the *Getting started* section of the `documentation <http://pushjet.readthedocs.io/>`__. Here's a little taste:
 
 .. code:: python
 
@@ -40,12 +40,12 @@ See the *Getting started* section of the `documentation <#>`__. Here's a little 
         print message.title
         print message.message
 
-For information on all the properties of the classes, and on how to use custom API instances, once again see the `documentation <#>`__.
+For information on all the properties of the classes, and on how to use custom API instances, once again see the `documentation <http://pushjet.readthedocs.io/>`__.
 
 Contact
 =======
 
-If there's a feature you're missing or a bug you've found in ``pushjet``, open an issue here on GitHub. If you've got a question - or there's anything you'd like to talk about at all, really - you can reach me via:
+If there's a feature you're missing or a bug you've found in ``pushjet``, `open an issue on GitHub <https://github.com/obskyr/pushjet-py/issues/new>`__. If you've got a question - or there's anything you'd like to talk about at all, really - you can reach me via:
 
 * `Twitter (@obskyr) <https://twitter.com/obskyr>`__
 * `E-mail <mailto:powpowd@gmail.com>`__

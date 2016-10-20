@@ -10,7 +10,7 @@ from .utilities import (
     requires_secret_key, with_api_bound,
     is_valid_uuid, is_valid_public_key, is_valid_secret_key, repr_format
 )
-from .errors import NonexistentError, SubscriptionError
+from .errors import NonexistentError, SubscriptionError, RequestError
 
 import sys
 if sys.version_info[0] >= 3:
@@ -23,7 +23,7 @@ else:
 DEFAULT_API_URL = 'https://api.pushjet.io/'
 
 class PushjetModel(object):
-    _api = None # Is filled in later
+    _api = None # This is filled in later.
 
 class Service(PushjetModel):
     """A Pushjet service to send messages through. To receive messages, devices
@@ -115,7 +115,10 @@ class Service(PushjetModel):
         self.secret_key = data.get('secret', getattr(self, 'secret_key', None))
 
     def refresh(self):
-        """Refresh the server's information, in case it could be edited from elsewhere."""
+        """Refresh the server's information, in case it could be edited from elsewhere.
+        
+        :raises: :exc:`~pushjet.NonexistentError` if the service was deleted before refreshing.
+        """
         key_name = 'public'
         secret = False
         if self.secret_key is not None:
@@ -183,7 +186,10 @@ class Device(PushjetModel):
     def subscribe(self, service):
         """Subscribe the device to a service.
         
-        :param service: The service to subscribe to. May be a public key or a :class:`~pushjet.Service`. 
+        :param service: The service to subscribe to. May be a public key or a :class:`~pushjet.Service`.
+
+        :raises: :exc:`~pushjet.NonexistentError` if the provided service does not exist.
+        :raises: :exc:`~pushjet.SubscriptionError` if the provided service is already subscribed to.
         """
         data = {}
         data['service'] = service.public_key if isinstance(service, Service) else service
@@ -199,6 +205,8 @@ class Device(PushjetModel):
         """Unsubscribe the device from a service.
         
         :param service: The service to unsubscribe from. May be a public key or a :class:`~pushjet.Service`. 
+        :raises: :exc:`~pushjet.NonexistentError` if the provided service does not exist.
+        :raises: :exc:`~pushjet.SubscriptionError` if the provided service isn't subscribed to.
         """
         data = {}
         data['service'] = service.public_key if isinstance(service, Service) else service
@@ -291,7 +299,10 @@ class Api(object):
     
     def _request(self, endpoint, method, params=None, data=None):
         url = urljoin(self.url, endpoint)
-        r = requests.request(method, url, params=params, data=data)
+        try:
+            r = requests.request(method, url, params=params, data=data)
+        except requests.RequestException as e:
+            raise RequestError(e)
         status = r.status_code
         try:
             response = r.json()

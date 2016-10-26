@@ -4,7 +4,7 @@ pushjet |logo| (Python API)
 .. |logo| image:: http://i.imgur.com/DayiPBl.png
     :align: middle
 
-Welcome to ``pushjet``, Python's `Pushjet <https://pushjet.io/>`__ (`see on GitHub <https://github.com/Pushjet/Pushjet-Server-Api>`__) API. Pushjet lets you push notifications directly to your phone (among other things)! This module lets you do that pushing from Python! It's pretty sweet - it lets you do all sorts of cool things, like integrating notifications into your web app or notifying you when something goes on sale.
+Welcome to ``pushjet``, Python's `Pushjet <https://pushjet.io/>`__ (`see the server on GitHub <https://github.com/Pushjet/Pushjet-Server-Api>`__) API. Pushjet lets you push notifications directly to your phone (among other things)! This module lets you do that pushing from Python! It's pretty sweet - it lets you do all sorts of cool things, like integrating notifications into your web app or notifying you when something goes on sale.
 
 And yep, the module's just named ``pushjet``. Spiffy name, and surely not at all confusing. Probably. Hopefully. Maybe.
 
@@ -15,7 +15,7 @@ The module is `on GitHub <https://github.com/obskyr/pushjet-py>`__, and `it's al
 
 .. code:: bash
 
-    pip install pushjet
+    > pip install pushjet
 
 Bam, you're ready to go. It's compatible with both Python 2 and 3, too - nice, huh?
 
@@ -30,8 +30,8 @@ See the *Getting started* section of the `documentation <http://pushjet.readthed
     import uuid
 
     service = pushjet.Service.create(
-        "Housing",
-        "http://example.com/house_icon.png"
+        "Open courses", # Name
+        "http://example.com/university_icon.png" # Icon URL
     )
     device = pushjet.Device(uuid.uuid4())
     device.subscribe(service)
@@ -43,6 +43,7 @@ See the *Getting started* section of the `documentation <http://pushjet.readthed
     for message in device.get_messages():
         print message.title
         print message.message
+        print message.link
 
 For information on all the properties of the classes, and on how to use custom API instances, once again see the `documentation <http://pushjet.readthedocs.io/>`__.
 

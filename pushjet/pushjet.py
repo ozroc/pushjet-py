@@ -158,6 +158,10 @@ class Service(PushjetModel):
             'icon': icon_url
         })
         _, response = cls._api._request('service', 'POST', data=data)
+        if 'service' not in response.keys():
+            raise ServerError("Erroneous response from server. Expected 'service' key not found."
+                              "Full response got from server:"
+                              "%s" % response)
         return cls._from_data(response['service'])
 
 class Device(PushjetModel):
